@@ -1,49 +1,60 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Helper to extract cards from a grid
+  // Helper to extract cards from a grid container
   function extractCardsFromGrid(grid) {
     const cards = [];
-    // Only direct children that are links (cards)
-    const cardLinks = grid.querySelectorAll(':scope > a');
-    cardLinks.forEach((cardLink) => {
-      // Image (if present)
-      let img = cardLink.querySelector('img');
-      // Title (h3)
-      let title = cardLink.querySelector('h3');
-      // Description (div.paragraph-sm)
-      let desc = cardLink.querySelector('.paragraph-sm');
-      // Defensive: fallback if not found
-      // Compose text cell
-      const textCell = [];
-      if (title) textCell.push(title);
-      if (desc) textCell.push(desc);
+    grid.querySelectorAll(':scope > a').forEach((card) => {
+      // Find image (mandatory)
+      let img = card.querySelector('img');
+      if (!img) return; // SKIP card if no image (image is mandatory)
+      // Find heading
+      let heading = card.querySelector('h1, h2, h3, h4');
+      // Find description
+      // Use all paragraph-like elements inside the card, not just .paragraph-sm
+      const descs = Array.from(card.querySelectorAll('p, .paragraph-sm'));
+      // If heading is also in descs, remove it
+      if (heading) {
+        descs.forEach((desc, i) => {
+          if (desc === heading) descs.splice(i, 1);
+        });
+      }
+      // Build text cell content
+      const textContent = [];
+      if (heading) textContent.push(heading);
+      descs.forEach(desc => textContent.push(desc));
+      // If there is a CTA (link inside the card that's not the card itself), add it
+      const cta = Array.from(card.querySelectorAll('a')).find(a => a !== card);
+      if (cta) textContent.push(cta);
+      // If no heading and no desc, fallback to all text nodes inside card
+      if (!heading && descs.length === 0) {
+        const fallback = document.createElement('div');
+        fallback.textContent = card.textContent.trim();
+        if (fallback.textContent) textContent.push(fallback);
+      }
+      // Push row: [image, text content]
       cards.push([
-        img || '',
-        textCell
+        img,
+        textContent.length ? textContent : '',
       ]);
     });
     return cards;
   }
 
-  // Find all tab panes (each with a grid of cards)
+  // Find all tab panes (each tab contains a grid of cards)
   const tabPanes = element.querySelectorAll(':scope > div');
-  let allCards = [];
+  const rows = [
+    ['Cards (cards23)']
+  ];
+
   tabPanes.forEach((tabPane) => {
-    // Find the grid inside this tab pane
+    if (tabPane.hasAttribute('data-hlx-imp-hidden-div')) return;
     const grid = tabPane.querySelector('.w-layout-grid');
     if (grid) {
       const cards = extractCardsFromGrid(grid);
-      allCards = allCards.concat(cards);
+      rows.push(...cards);
     }
   });
 
-  // Compose the table rows
-  const headerRow = ['Cards (cards23)'];
-  const tableRows = [headerRow, ...allCards];
-
-  // Create the block table
-  const block = WebImporter.DOMUtils.createTable(tableRows, document);
-
-  // Replace the original element
-  element.replaceWith(block);
+  const table = WebImporter.DOMUtils.createTable(rows, document);
+  element.replaceWith(table);
 }

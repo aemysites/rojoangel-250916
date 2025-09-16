@@ -1,37 +1,33 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Helper: Get all immediate children of a given element matching selector
-  function getDirectChildren(parent, selector) {
-    return Array.from(parent.children).filter((el) => el.matches(selector));
+  // Helper to get all immediate child divs of the grid
+  function getGridItems(grid) {
+    return Array.from(grid.querySelectorAll(':scope > div'));
   }
 
-  // 1. Table header row
+  // Find the grid container that holds the images
+  const grid = element.querySelector('.grid-layout');
+  if (!grid) return;
+
+  // Get all grid items (each is a slide)
+  const items = getGridItems(grid);
+
+  // Table header row
   const headerRow = ['Carousel (carousel16)'];
   const rows = [headerRow];
 
-  // 2. Find the grid container with the images
-  let grid;
-  const centered = element.querySelector('.centered');
-  if (centered) {
-    grid = centered.querySelector('.grid-layout');
-  }
-  if (!grid) {
-    grid = element.querySelector('.grid-layout');
-  }
-  if (!grid) return;
-
-  // 3. For each image cell in the grid, create a row: [image, ''] (always two columns per row)
-  const gridItems = getDirectChildren(grid, 'div');
-  gridItems.forEach((item) => {
+  // For each grid item, extract the image and create a row
+  items.forEach((item) => {
+    // Find the image inside the grid item
     const img = item.querySelector('img');
-    if (img) {
-      rows.push([img, '']); // Always two columns per row, second cell empty if no text
-    }
+    if (!img) return; // Defensive: skip if no image
+    // Always include two columns: image and empty string (for text content)
+    rows.push([img, '']);
   });
 
-  // 4. Create the table block
-  const table = WebImporter.DOMUtils.createTable(rows, document);
+  // Create the block table
+  const block = WebImporter.DOMUtils.createTable(rows, document);
 
-  // 5. Replace the original element
-  element.replaceWith(table);
+  // Replace the original element with the block table
+  element.replaceWith(block);
 }

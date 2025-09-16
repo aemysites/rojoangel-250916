@@ -1,27 +1,30 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Find the grid layout (columns wrapper)
-  const grid = element.querySelector('.w-layout-grid');
+  // Find the grid layout (columns)
+  const grid = element.querySelector('.grid-layout');
   if (!grid) return;
 
-  // Get the two columns: left (text), right (image)
+  // Get immediate children of the grid (should be two: left content, right image)
   const columns = Array.from(grid.children);
   if (columns.length < 2) return;
 
-  // Use references to the actual DOM nodes, not clones
+  // Left column: rich content (text, heading, button)
   const leftCol = columns[0];
+  // Right column: image
   const rightCol = columns[1];
 
-  // Build the table rows
+  // Table header: must match block name exactly
   const headerRow = ['Columns (columns27)'];
-  const contentRow = [leftCol, rightCol];
 
-  // Create the block table using the DOMUtils helper
+  // Table second row: each cell is a reference to the original element (not cloned)
+  const secondRow = [leftCol, rightCol];
+
+  // Build table using WebImporter.DOMUtils.createTable
   const table = WebImporter.DOMUtils.createTable([
     headerRow,
-    contentRow
+    secondRow
   ], document);
 
-  // Replace the section with the table
+  // Replace original element with the table
   element.replaceWith(table);
 }

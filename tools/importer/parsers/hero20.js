@@ -1,44 +1,43 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  if (!element || !element.matches('header.section')) return;
+  // Helper to find the background image grid
+  function getBackgroundImageGrid(el) {
+    // Find the grid with multiple images
+    return el.querySelector('.grid-layout.desktop-3-column');
+  }
 
-  // Header row
+  // Helper to collect all images in the grid
+  function getAllImagesFromGrid(grid) {
+    if (!grid) return [];
+    return Array.from(grid.querySelectorAll('img'));
+  }
+
+  // Helper to find the content container (title, subheading, CTA)
+  function getContentContainer(el) {
+    return el.querySelector('.container.small-container');
+  }
+
+  // ---
+  // 1. Header row
   const headerRow = ['Hero (hero20)'];
 
-  // Background image row: use only the first image as background
-  let bgImg = '';
-  const grid = element.querySelector('.ix-hero-scale-3x-to-1x .grid-layout');
-  if (grid) {
-    const firstImg = grid.querySelector('img');
-    if (firstImg) bgImg = firstImg;
-  }
-  const imagesRow = [bgImg ? bgImg : ''];
+  // 2. Background image row (all images as a collage)
+  const grid = getBackgroundImageGrid(element);
+  const images = getAllImagesFromGrid(grid);
+  // Defensive: only add if images exist
+  const backgroundRow = [images.length ? images : ''];
 
-  // Content row: title, subheading, CTA (as links)
-  const contentContainer = element.querySelector('.ix-hero-scale-3x-to-1x-content .container');
-  const contentRowContent = [];
-  if (contentContainer) {
-    const h1 = contentContainer.querySelector('h1');
-    if (h1) contentRowContent.push(h1);
-    const subheading = contentContainer.querySelector('p.subheading');
-    if (subheading) contentRowContent.push(subheading);
-    const buttonGroup = contentContainer.querySelector('.button-group');
-    if (buttonGroup) {
-      const links = buttonGroup.querySelectorAll('a');
-      if (links.length) {
-        // Only push actual <a> elements, not arrays or strings
-        links.forEach(link => contentRowContent.push(link));
-      }
-    }
-  }
-  const contentRow = [contentRowContent.length ? contentRowContent : ''];
+  // 3. Content row (title, subheading, CTA)
+  const contentContainer = getContentContainer(element);
+  const contentRow = [contentContainer ? contentContainer : ''];
 
+  // 4. Compose table
   const cells = [
     headerRow,
-    imagesRow,
+    backgroundRow,
     contentRow,
   ];
 
-  const block = WebImporter.DOMUtils.createTable(cells, document);
-  element.replaceWith(block);
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+  element.replaceWith(table);
 }

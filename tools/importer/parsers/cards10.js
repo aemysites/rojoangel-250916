@@ -1,57 +1,64 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Header row as per block spec
+  // Table header row
   const headerRow = ['Cards (cards10)'];
   const rows = [headerRow];
 
-  // Get all card links (each card is an <a> block)
-  const cards = element.querySelectorAll(':scope > a.card-link');
+  // Get all card elements (direct children that are links)
+  const cardLinks = element.querySelectorAll(':scope > a.card-link');
 
-  cards.forEach((card) => {
-    // Image cell: find the first <img> inside the card
-    const imageWrapper = card.querySelector('.utility-aspect-3x2');
-    let imageCell = '';
-    if (imageWrapper) {
-      const img = imageWrapper.querySelector('img');
-      if (img) imageCell = img;
+  cardLinks.forEach((card) => {
+    // Find image container and image
+    const imageContainer = card.querySelector('.utility-aspect-3x2');
+    let imageEl = null;
+    if (imageContainer) {
+      imageEl = imageContainer.querySelector('img');
     }
 
-    // Text cell: collect tag, heading, paragraph, and CTA if present
-    const textWrapper = card.querySelector('.utility-padding-all-1rem');
-    let textCellElements = [];
-    if (textWrapper) {
+    // Find text content container
+    const textContainer = card.querySelector('.utility-padding-all-1rem');
+    let textContent = [];
+    if (textContainer) {
       // Tag (optional)
-      const tag = textWrapper.querySelector('.tag-group');
-      if (tag) textCellElements.push(tag);
-      // Heading (h3)
-      const heading = textWrapper.querySelector('h3');
-      if (heading) textCellElements.push(heading);
-      // Paragraph (description)
-      const desc = textWrapper.querySelector('p');
-      if (desc) textCellElements.push(desc);
-      // CTA: if the card's href is not just '#' or '', add a link at the end
-      const href = card.getAttribute('href');
-      if (href && href !== '#' && href !== '') {
-        // We'll use the heading text or "Learn more" as link text
-        let linkText = 'Learn more';
-        if (heading && heading.textContent) linkText = heading.textContent.trim();
+      const tagGroup = textContainer.querySelector('.tag-group');
+      if (tagGroup) {
+        // Use the tag element directly if present
+        const tag = tagGroup.querySelector('.tag');
+        if (tag) {
+          textContent.push(tag);
+        }
+      }
+      // Heading (optional)
+      const heading = textContainer.querySelector('h3');
+      if (heading) {
+        textContent.push(heading);
+      }
+      // Description (optional)
+      const desc = textContainer.querySelector('p');
+      if (desc) {
+        textContent.push(desc);
+      }
+      // Call-to-action: use the card link itself if it has an href and isn't just '#'
+      if (card.href && card.href !== '#' && card.href !== window.location.href) {
+        // Use the heading text as CTA if available, otherwise fallback to 'Learn more'
+        let ctaText = heading ? heading.textContent.trim() : 'Learn more';
         const cta = document.createElement('a');
-        cta.href = href;
-        cta.textContent = linkText;
-        cta.setAttribute('style', 'display:block;margin-top:0.5em;');
-        textCellElements.push(cta);
+        cta.href = card.href;
+        cta.textContent = ctaText;
+        cta.className = 'card-cta';
+        textContent.push(cta);
       }
     }
-    // Defensive: fallback if text cell is empty
-    if (textCellElements.length === 0) textCellElements = [card];
 
+    // Compose the row: [image, text content]
     rows.push([
-      imageCell,
-      textCellElements,
+      imageEl || '',
+      textContent
     ]);
   });
 
-  // Create table and replace original element
-  const table = WebImporter.DOMUtils.createTable(rows, document);
-  element.replaceWith(table);
+  // Create the table block
+  const block = WebImporter.DOMUtils.createTable(rows, document);
+  // Replace the original element
+  element.replaceWith(block);
 }

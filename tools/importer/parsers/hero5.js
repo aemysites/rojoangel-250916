@@ -1,59 +1,57 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Defensive: Find the main grid container
-  const mainGrid = element.querySelector('.grid-layout.grid-gap-xxl');
-  if (!mainGrid) return;
-
-  // Find the image (background/hero visual)
+  // Get all direct children of the main grid
+  const grid = element.querySelector('.grid-layout.container');
+  let contentContainer = null;
   let imageEl = null;
-  // Look for an <img> directly inside mainGrid
-  const imgs = mainGrid.querySelectorAll('img');
-  if (imgs.length > 0) {
-    imageEl = imgs[0];
+
+  // Find the image (background asset)
+  // The image is a direct child of the top-level grid
+  imageEl = element.querySelector('img');
+
+  // Find the content container (contains heading, paragraph, buttons)
+  contentContainer = grid ? grid.querySelector('.section') : null;
+
+  // Extract heading (h2 or h1)
+  let heading = null;
+  if (contentContainer) {
+    heading = contentContainer.querySelector('h2, h1');
   }
 
-  // Find the content block (headings, paragraph, CTA)
-  let contentBlock = null;
-  // Look for a child grid inside mainGrid
-  const innerGrids = mainGrid.querySelectorAll('.grid-layout.container');
-  if (innerGrids.length > 0) {
-    // The first inner grid contains the content
-    contentBlock = innerGrids[0];
-  }
-
-  // Defensive: Find the actual section with the heading, paragraph, and buttons
-  let heroContent = null;
-  if (contentBlock) {
-    const possibleSections = contentBlock.querySelectorAll('.section');
-    if (possibleSections.length > 0) {
-      heroContent = possibleSections[0];
+  // Extract subheading (first paragraph in .rich-text)
+  let subheading = null;
+  if (contentContainer) {
+    const richText = contentContainer.querySelector('.rich-text, .w-richtext');
+    if (richText) {
+      subheading = richText.querySelector('p');
     }
   }
 
-  // Compose the content cell for row 3: heading, paragraph, buttons
-  let contentCell = [];
-  if (heroContent) {
-    // Heading
-    const heading = heroContent.querySelector('h2');
-    if (heading) contentCell.push(heading);
-    // Paragraph
-    const paragraph = heroContent.querySelector('.rich-text p');
-    if (paragraph) contentCell.push(paragraph);
-    // Buttons
-    const buttonGroup = heroContent.querySelector('.button-group');
-    if (buttonGroup) {
-      // Add all buttons as links
-      const buttons = buttonGroup.querySelectorAll('a');
-      buttons.forEach(btn => contentCell.push(btn));
-    }
+  // Extract CTA buttons (all <a> in .button-group)
+  let ctaGroup = null;
+  if (contentContainer) {
+    ctaGroup = contentContainer.querySelector('.button-group');
   }
 
-  // Table rows
+  // Compose the 3 rows
   const headerRow = ['Hero (hero5)'];
   const imageRow = [imageEl ? imageEl : ''];
-  const contentRow = [contentCell.length ? contentCell : ''];
+  // Compose content row: heading, subheading, CTA
+  const contentRow = [];
+  const contentElements = [];
+  if (heading) contentElements.push(heading);
+  if (subheading) contentElements.push(subheading);
+  if (ctaGroup) contentElements.push(ctaGroup);
+  contentRow.push(contentElements);
 
-  const cells = [headerRow, imageRow, contentRow];
-  const block = WebImporter.DOMUtils.createTable(cells, document);
-  element.replaceWith(block);
+  // Build the table
+  const cells = [
+    headerRow,
+    imageRow,
+    contentRow
+  ];
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+
+  // Replace original element
+  element.replaceWith(table);
 }

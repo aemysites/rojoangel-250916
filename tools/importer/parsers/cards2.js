@@ -1,60 +1,66 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Helper to extract all text content from a node
-  function getAllTextContent(node) {
-    // Collect tag group, heading, paragraphs, and any links
-    const fragment = document.createDocumentFragment();
-    // Tag group (optional)
-    const tagGroup = node.querySelector('.tag-group');
-    if (tagGroup) fragment.appendChild(tagGroup.cloneNode(true));
-    // Heading (h2/h3/h4)
-    const heading = node.querySelector('h2, h3, h4');
-    if (heading) fragment.appendChild(heading.cloneNode(true));
-    // All paragraphs
-    node.querySelectorAll('p').forEach(p => {
-      fragment.appendChild(p.cloneNode(true));
-    });
-    // Any call-to-action links (if present)
-    node.querySelectorAll('a').forEach(a => {
-      // Only add if not the card wrapper itself
-      if (!a.classList.contains('utility-link-content-block')) {
-        fragment.appendChild(a.cloneNode(true));
-      }
-    });
-    return fragment;
+  // Helper to extract image and text from a card anchor
+  function extractCardContent(cardAnchor) {
+    // Find image (first img in anchor or descendant)
+    const img = cardAnchor.querySelector('img');
+    // Find tag group (optional)
+    const tagGroup = cardAnchor.querySelector('.tag-group');
+    // Find heading (h3 or h4)
+    const heading = cardAnchor.querySelector('h3, h4');
+    // Find description (p)
+    const description = cardAnchor.querySelector('p');
+    // Compose text cell
+    const textParts = [];
+    if (tagGroup) textParts.push(tagGroup.cloneNode(true));
+    if (heading) textParts.push(heading.cloneNode(true));
+    if (description) textParts.push(description.cloneNode(true));
+    // Defensive: if no img, skip this card (do not return a row)
+    if (!img) return null;
+    return [img.cloneNode(true), textParts];
   }
 
-  // Find the grid layout container
+  // Get the grid layout container
   const grid = element.querySelector('.grid-layout');
   if (!grid) return;
 
-  // Compose rows for the table
   const rows = [];
-  // Header row
+
+  // --- First card: Large left image, text below ---
+  // The first child is a large anchor with image and text
+  const firstCardAnchor = grid.children[0];
+  if (firstCardAnchor && firstCardAnchor.matches('a')) {
+    const firstCardImageDiv = firstCardAnchor.querySelector('.utility-aspect-1x1');
+    const firstImg = firstCardImageDiv ? firstCardImageDiv.querySelector('img') : null;
+    const firstTagGroup = firstCardAnchor.querySelector('.tag-group');
+    const firstHeading = firstCardAnchor.querySelector('h3, h4');
+    const firstDescription = firstCardAnchor.querySelector('p');
+    const firstTextParts = [];
+    if (firstTagGroup) firstTextParts.push(firstTagGroup.cloneNode(true));
+    if (firstHeading) firstTextParts.push(firstHeading.cloneNode(true));
+    if (firstDescription) firstTextParts.push(firstDescription.cloneNode(true));
+    if (firstImg) rows.push([firstImg.cloneNode(true), firstTextParts]);
+  }
+
+  // --- Second column: vertical cards with images and text ---
+  // The next sibling is a flex container with two card anchors
+  const secondCol = grid.children[1];
+  if (secondCol) {
+    const secondColCards = Array.from(secondCol.querySelectorAll('a.utility-link-content-block'));
+    secondColCards.forEach(cardAnchor => {
+      const row = extractCardContent(cardAnchor);
+      if (row) rows.push(row);
+    });
+  }
+
+  // --- Third column: vertical cards with text only ---
+  // The next sibling is a flex container with text-only cards
+  // These do NOT have images/icons, so they must be omitted for this block
+
+  // Compose table
   const headerRow = ['Cards (cards2)'];
-  rows.push(headerRow);
+  const table = WebImporter.DOMUtils.createTable([headerRow, ...rows], document);
 
-  // Find all cards with images
-  const cardSelectors = [
-    'a.utility-link-content-block .utility-aspect-1x1',
-    'a.utility-link-content-block .utility-aspect-3x2'
-  ];
-  // Get all card anchor elements
-  const cardAnchors = grid.querySelectorAll('a.utility-link-content-block');
-  cardAnchors.forEach(card => {
-    // Try to get image from aspect div
-    const imgDiv = card.querySelector('.utility-aspect-1x1, .utility-aspect-3x2');
-    const img = imgDiv ? imgDiv.querySelector('img') : null;
-    if (img) {
-      // Get all text content (tags, heading, paragraphs, cta)
-      const textCell = getAllTextContent(card);
-      rows.push([img, textCell]);
-    }
-  });
-
-  // Build the table
-  const table = WebImporter.DOMUtils.createTable(rows, document);
-
-  // Replace the original element
+  // Replace original element
   element.replaceWith(table);
 }

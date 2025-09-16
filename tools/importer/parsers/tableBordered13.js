@@ -2,25 +2,37 @@
 export default function parse(element, { document }) {
   // Table header row
   const headerRow = ['Table (bordered, tableBordered13)'];
-  const rows = [headerRow];
 
-  // Defensive: get all immediate child divs (each is a Q&A row)
-  const qaDivs = element.querySelectorAll(':scope > div');
+  // Get all immediate children that represent each Q&A row
+  const rows = [];
+  const dividers = element.querySelectorAll(':scope > .divider');
 
-  qaDivs.forEach((qaDiv) => {
-    // Each qaDiv contains a .divider > .w-layout-grid > [heading, rich-text]
-    const grid = qaDiv.querySelector('.w-layout-grid');
-    if (!grid) return;
-    // Get the two columns: heading and answer
-    const children = grid.querySelectorAll(':scope > div');
-    if (children.length < 2) return;
-    const question = children[0]; // heading
-    const answer = children[1];   // rich text
-    rows.push([question, answer]);
+  // Defensive: If no .divider children, fallback to all direct children
+  const blocks = dividers.length ? dividers : element.querySelectorAll(':scope > div');
+
+  // Each block is a Q&A pair (question + answer)
+  blocks.forEach((block) => {
+    // Each block contains a .grid-layout with two children: heading and paragraph
+    const grid = block.querySelector('.grid-layout');
+    if (grid) {
+      // Defensive: Get direct children of grid
+      const cells = Array.from(grid.children);
+      // Typically: [heading, paragraph]
+      if (cells.length >= 2) {
+        rows.push([cells[0], cells[1]]);
+      } else if (cells.length === 1) {
+        // If only one child, fill second cell with empty string
+        rows.push([cells[0], '']);
+      }
+    }
   });
 
+  // Build table cells array
+  const cells = [headerRow, ...rows];
+
   // Create the table block
-  const table = WebImporter.DOMUtils.createTable(rows, document);
-  // Replace the original element
+  const table = WebImporter.DOMUtils.createTable(cells, document);
+
+  // Replace original element with the new table
   element.replaceWith(table);
 }
