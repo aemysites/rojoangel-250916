@@ -3,24 +3,23 @@ export default function parse(element, { document }) {
   // Always use the block name as the header row
   const headerRow = ['Columns (columns31)'];
 
-  // Defensive: Find the grid layout container (should be the first child of .container)
+  // Defensive: find the grid-layout container (should be direct child of .container)
   const grid = element.querySelector(':scope > .grid-layout');
-  // If not found, fallback to all direct children
-  const columns = grid ? Array.from(grid.children) : Array.from(element.children);
+  if (!grid) return; // If missing, do nothing
 
-  // The columns block expects each column's content in a separate cell in the second row
-  // We'll reference each column's content directly
-  const contentCells = columns.map(col => col);
+  // Get all immediate children of the grid (these are the columns)
+  const columns = Array.from(grid.querySelectorAll(':scope > div'));
 
-  // Compose the table rows
-  const rows = [
-    headerRow,
-    contentCells
-  ];
+  // For this block, each column is a cell in the second row
+  // Each column may contain text, links, etc. Use the whole column element for resilience
+  const contentRow = columns.map((col) => col);
+
+  // Build the table data
+  const cells = [headerRow, contentRow];
 
   // Create the block table
-  const blockTable = WebImporter.DOMUtils.createTable(rows, document);
+  const block = WebImporter.DOMUtils.createTable(cells, document);
 
-  // Replace the original element with the new block table
-  element.replaceWith(blockTable);
+  // Replace the original element with the new block
+  element.replaceWith(block);
 }

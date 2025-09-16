@@ -1,30 +1,46 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Header row
+  // Table header row as required
   const headerRow = ['Hero (hero35)'];
 
-  // Background image row: none present in this HTML, so leave as empty string
-  const imageRow = [''];
-
-  // Content row: gather heading, subheading, CTA
-  let contentCell = [''];
+  // Find the grid layout container (content row)
   const grid = element.querySelector('.grid-layout');
+  let title = null;
+  let subheading = null;
+  let cta = null;
+
   if (grid) {
+    // Get all direct children of the grid
     const gridChildren = grid.querySelectorAll(':scope > *');
-    if (gridChildren.length > 0) {
-      // Compose a single div to wrap all content for the cell
-      const wrapper = document.createElement('div');
-      gridChildren.forEach(child => wrapper.appendChild(child.cloneNode(true)));
-      contentCell = [wrapper];
+    // The first child should contain the headings and subheading
+    const contentBlock = gridChildren[0];
+    if (contentBlock) {
+      // Find heading (h2), subheading (p), etc.
+      title = contentBlock.querySelector('h1, h2, h3, h4, h5, h6');
+      subheading = contentBlock.querySelector('p');
+    }
+    // The second child should be the CTA link/button
+    if (gridChildren.length > 1) {
+      cta = gridChildren[1];
     }
   }
 
-  // Compose table rows: header, image (empty), content
+  // Compose the content cell for row 3
+  const contentCell = [];
+  if (title) contentCell.push(title);
+  if (subheading) contentCell.push(subheading);
+  if (cta) contentCell.push(cta);
+
+  // Build the table rows
   const rows = [
     headerRow,
-    imageRow,
-    contentCell,
+    [''], // Row 2: Background image (none in this HTML, so single empty cell)
+    [contentCell], // Row 3: Title, subheading, CTA
   ];
-  const table = WebImporter.DOMUtils.createTable(rows, document);
-  element.replaceWith(table);
+
+  // Create the block table
+  const block = WebImporter.DOMUtils.createTable(rows, document);
+
+  // Replace the original element with the block
+  element.replaceWith(block);
 }

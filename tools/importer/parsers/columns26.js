@@ -1,78 +1,50 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Helper to get immediate children of a node
-  function getDirectChildrenByTag(parent, tagName) {
-    return Array.from(parent.children).filter(el => el.tagName.toLowerCase() === tagName.toLowerCase());
-  }
-
-  // Find the main grid layout inside the section
+  // Find the main grid containing the two columns
   const container = element.querySelector('.container');
   if (!container) return;
-  const mainGrid = container.querySelector('.grid-layout');
-  if (!mainGrid) return;
+  const grid = container.querySelector('.w-layout-grid.grid-layout');
+  if (!grid) return;
 
-  // Get all direct children of the main grid
-  const gridChildren = Array.from(mainGrid.children);
+  // Get the main two columns (heading/author and quote/logo)
+  // The grid has three children: leftCol, rightCol, bottomRowGrid
+  const gridChildren = Array.from(grid.children);
+  if (gridChildren.length < 3) return;
+  const leftCol = gridChildren[0]; // heading
+  const rightCol = gridChildren[1]; // quote
+  const bottomGrid = gridChildren[2];
 
-  // Defensive: Find the two main columns visually represented in the screenshot
-  // Left column: heading, testimonial text, divider, avatar, name/title
-  // Right column: (empty in source, but in screenshot, right side has logo)
-  // In source HTML, the right column content is missing, so we only use the left content
-
-  // The testimonial block is visually split into two columns:
-  // 1. Left: Heading, testimonial, avatar, name/title
-  // 2. Right: (logo, which is not present in source HTML)
-
-  // We'll organize the left column content into one cell, and the right cell will be empty
-  // If the logo is present in future HTML, add it to the right cell
-
-  // Extract left column content
-  const heading = mainGrid.querySelector('.h2-heading');
-  const testimonial = mainGrid.querySelector('.paragraph-lg');
-  const innerGrid = mainGrid.querySelector('.w-layout-grid.grid-layout:not(.mobile-landscape-1-column)') || mainGrid.querySelector('.w-layout-grid.grid-layout');
-  let avatarBlock = null;
-  let nameTitleBlock = null;
-  let divider = null;
-  let logoBlock = null;
-
-  if (innerGrid) {
-    // Divider
-    divider = innerGrid.querySelector('.divider');
-    // Avatar block
-    avatarBlock = innerGrid.querySelector('.avatar');
-    // Name/title block
-    const nameTitleDiv = innerGrid.querySelector('.flex-horizontal.y-center.flex-gap-xs > div:not(.avatar)');
-    if (nameTitleDiv) {
-      // Defensive: combine all children into a fragment
-      nameTitleBlock = document.createDocumentFragment();
-      Array.from(nameTitleDiv.children).forEach(child => nameTitleBlock.appendChild(child));
+  // Defensive: bottomGrid is a grid with divider, avatar+name, logo
+  let avatarBlock = null, logoBlock = null;
+  if (bottomGrid.classList.contains('w-layout-grid')) {
+    for (const child of bottomGrid.children) {
+      if (child.classList.contains('flex-horizontal')) {
+        avatarBlock = child;
+      } else if (child.classList.contains('utility-display-inline-block')) {
+        logoBlock = child;
+      }
     }
-    // Logo block (right-aligned)
-    logoBlock = innerGrid.querySelector('.utility-display-inline-block');
   }
 
-  // Compose left column cell
-  const leftColumnElements = [];
-  if (heading) leftColumnElements.push(heading);
-  if (testimonial) leftColumnElements.push(testimonial);
-  if (divider) leftColumnElements.push(divider);
-  if (avatarBlock) leftColumnElements.push(avatarBlock);
-  if (nameTitleBlock) leftColumnElements.push(nameTitleBlock);
+  // Compose left column: heading + avatar
+  const leftColContent = document.createElement('div');
+  leftColContent.appendChild(leftCol);
+  if (avatarBlock) leftColContent.appendChild(avatarBlock);
 
-  // Compose right column cell
-  const rightColumnElements = [];
-  if (logoBlock) rightColumnElements.push(logoBlock);
+  // Compose right column: quote + logo
+  const rightColContent = document.createElement('div');
+  rightColContent.appendChild(rightCol);
+  if (logoBlock) rightColContent.appendChild(logoBlock);
 
-  // Table header
+  // Table structure
   const headerRow = ['Columns (columns26)'];
+  const contentRow = [leftColContent, rightColContent];
 
-  // Table second row: two columns
-  const secondRow = [leftColumnElements, rightColumnElements.length ? rightColumnElements : ''];
+  // Create table
+  const table = WebImporter.DOMUtils.createTable([
+    headerRow,
+    contentRow
+  ], document);
 
-  // Build the table
-  const cells = [headerRow, secondRow];
-  const block = WebImporter.DOMUtils.createTable(cells, document);
-
-  // Replace the original element
-  element.replaceWith(block);
+  element.replaceWith(table);
 }

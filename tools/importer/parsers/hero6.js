@@ -1,60 +1,37 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Helper to get direct children by tag name
-  function getDirectChildByTag(parent, tagName) {
-    return Array.from(parent.children).find(child => child.tagName.toLowerCase() === tagName.toLowerCase());
-  }
-
-  // 1. Header row
+  // Table header row
   const headerRow = ['Hero (hero6)'];
 
-  // 2. Background image row
-  let bgImg = null;
-  // Find the image in the first grid cell
-  const gridDivs = element.querySelectorAll(':scope > div > div');
-  // Defensive: look for an img with class 'cover-image'
-  for (const div of gridDivs) {
-    const img = div.querySelector('img.cover-image');
-    if (img) {
-      bgImg = img;
-      break;
-    }
-  }
-  const imageRow = [bgImg ? bgImg : ''];
+  // Find the background image (first <img> in the header)
+  const bgImg = element.querySelector('img');
+  const bgImgCell = bgImg ? bgImg : '';
 
-  // 3. Content row: title, subheading, CTA
-  let contentCell = document.createElement('div');
-  // Find the card with text and buttons
-  let card = null;
-  for (const div of gridDivs) {
-    const maybeCard = div.querySelector('.card');
-    if (maybeCard) {
-      card = maybeCard;
-      break;
-    }
-  }
+  // Find the card content (headline, subheading, CTA)
+  const card = element.querySelector('.card');
+  const cardCellContent = [];
   if (card) {
-    // Extract heading
-    const heading = card.querySelector('h1');
-    if (heading) contentCell.appendChild(heading);
-    // Extract subheading
-    const subheading = card.querySelector('p');
-    if (subheading) contentCell.appendChild(subheading);
-    // Extract button group
+    // Headline (h1)
+    const h1 = card.querySelector('h1');
+    if (h1) cardCellContent.push(h1);
+    // Subheading (p.subheading)
+    const subheading = card.querySelector('p.subheading');
+    if (subheading) cardCellContent.push(subheading);
+    // CTA buttons (button-group)
     const buttonGroup = card.querySelector('.button-group');
-    if (buttonGroup) {
-      // Defensive: only include direct children that are links
-      Array.from(buttonGroup.children).forEach(btn => {
-        if (btn.tagName === 'A') contentCell.appendChild(btn);
-      });
-    }
+    if (buttonGroup) cardCellContent.push(buttonGroup);
   }
-  const contentRow = [contentCell];
+  // If nothing found, use empty string
+  const cardCell = cardCellContent.length ? cardCellContent : '';
 
-  // Compose table
-  const cells = [headerRow, imageRow, contentRow];
-  const table = WebImporter.DOMUtils.createTable(cells, document);
+  // Compose table rows
+  const rows = [
+    headerRow,
+    [bgImgCell],
+    [cardCell]
+  ];
 
-  // Replace original element
+  // Create the block table
+  const table = WebImporter.DOMUtils.createTable(rows, document);
   element.replaceWith(table);
 }

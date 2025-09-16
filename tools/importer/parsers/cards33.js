@@ -1,39 +1,65 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Helper to extract card info from each card anchor
-  function extractCardInfo(cardAnchor) {
-    // Find the image (mandatory, always first img)
-    const img = cardAnchor.querySelector('img');
-
-    // Find the card content container (the div after the img)
-    const contentDiv = img.nextElementSibling;
-
-    // Compose the text cell: include ALL content from contentDiv
-    // This ensures all text, tags, headings, paragraphs, and CTA are included
-    const textCell = document.createElement('div');
-    // Clone all children of contentDiv into textCell
-    Array.from(contentDiv.children).forEach(child => {
-      textCell.appendChild(child.cloneNode(true));
-    });
-
-    return [img, textCell];
-  }
-
-  // Get all card anchors (direct children)
+  // Get all immediate child <a> elements (each is a card)
   const cards = Array.from(element.querySelectorAll(':scope > a'));
 
-  // Table header
+  // Table header row
   const headerRow = ['Cards (cards33)'];
   const rows = [headerRow];
 
-  // For each card, extract info and push as a row
-  cards.forEach(cardAnchor => {
-    rows.push(extractCardInfo(cardAnchor));
+  cards.forEach(card => {
+    // Image (mandatory)
+    const img = card.querySelector('img');
+
+    // Find the content container (the first div after the image)
+    let textContentDiv = null;
+    if (img) {
+      let next = img.nextElementSibling;
+      while (next && next.nodeType === 3) next = next.nextSibling; // skip text nodes
+      if (next && next.tagName === 'DIV') textContentDiv = next;
+    }
+    if (!textContentDiv) {
+      // fallback: first div inside card after img
+      const divs = Array.from(card.querySelectorAll('div'));
+      textContentDiv = divs.length > 0 ? divs[0] : null;
+    }
+
+    // Compose the text cell content
+    const textCellContent = [];
+    if (textContentDiv) {
+      // Tag and time (optional)
+      const tagRow = textContentDiv.querySelector('.flex-horizontal');
+      if (tagRow) {
+        const tag = tagRow.querySelector('.tag');
+        const time = tagRow.querySelector('.paragraph-sm');
+        if (tag) textCellContent.push(tag);
+        if (time) textCellContent.push(time);
+      }
+      // Heading (h3)
+      const heading = textContentDiv.querySelector('h3');
+      if (heading) textCellContent.push(heading);
+      // Description (p)
+      const description = textContentDiv.querySelector('p');
+      if (description) textCellContent.push(description);
+      // CTA ("Read")
+      // Find the last direct child div (usually the CTA)
+      const directDivs = Array.from(textContentDiv.children).filter(el => el.tagName === 'DIV');
+      if (directDivs.length > 0) {
+        const cta = directDivs[directDivs.length - 1];
+        if (cta && cta !== tagRow && cta.textContent.trim().length > 0) {
+          textCellContent.push(cta);
+        }
+      }
+    }
+
+    // Compose the row: [image, text cell]
+    const row = [img, textCellContent];
+    rows.push(row);
   });
 
   // Create the table block
-  const table = WebImporter.DOMUtils.createTable(rows, document);
+  const block = WebImporter.DOMUtils.createTable(rows, document);
 
   // Replace the original element
-  element.replaceWith(table);
+  element.replaceWith(block);
 }

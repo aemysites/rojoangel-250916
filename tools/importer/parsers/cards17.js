@@ -1,47 +1,32 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Table header row for Cards block (must be a single cell)
+  // Table header row as required (single cell, no colspan)
   const headerRow = ['Cards (cards17)'];
 
-  // Get all immediate child divs (each card)
+  // Get all immediate child divs (each is a card wrapper with an image)
   const cardDivs = element.querySelectorAll(':scope > div');
 
-  // Build rows: each card is a row with [image, text]
+  // Build rows: each card gets [image, text cell] (text cell must not be omitted)
   const rows = Array.from(cardDivs).map((cardDiv) => {
-    // Find the image inside the card div
     const img = cardDiv.querySelector('img');
-    if (!img) return null;
-
-    // Use the image alt as the card title
-    let title = img.alt && img.alt.trim() ? img.alt.trim() : '';
-    // No other text content in the source html, so only use the title
-    let textCell = document.createElement('div');
-    if (title) {
-      const heading = document.createElement('h3');
-      heading.textContent = title;
-      textCell.appendChild(heading);
+    // For text cell, use the image alt text as fallback for title, styled as a heading
+    let textCell = '';
+    if (img && img.alt) {
+      const title = document.createElement('h3');
+      title.textContent = img.alt;
+      textCell = title;
+    } else {
+      textCell = '';
     }
-    // If there is other text content in the cardDiv, add it below the heading
-    Array.from(cardDiv.childNodes).forEach((node) => {
-      if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-        const desc = document.createElement('p');
-        desc.textContent = node.textContent.trim();
-        textCell.appendChild(desc);
-      } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== 'IMG') {
-        const desc = document.createElement('p');
-        desc.textContent = node.textContent.trim();
-        textCell.appendChild(desc);
-      }
-    });
     return [img, textCell];
-  }).filter(Boolean);
+  });
 
-  // Compose table cells: header row (single cell), then card rows (2 cells)
+  // Compose the table cells array
   const cells = [headerRow, ...rows];
 
-  // Create block table
+  // Create the block table
   const block = WebImporter.DOMUtils.createTable(cells, document);
 
-  // Replace original element with block
+  // Replace the original element with the new block table
   element.replaceWith(block);
 }

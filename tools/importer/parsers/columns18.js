@@ -1,41 +1,36 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Find the grid layout
+  // Find the main grid-layout container
   const grid = element.querySelector('.grid-layout');
   if (!grid) return;
 
-  // Get all direct children of the grid
-  const children = Array.from(grid.children);
+  // Get all immediate children of the grid
+  const gridChildren = Array.from(grid.querySelectorAll(':scope > *'));
 
-  // Identify left (intro), right (contacts), and image
-  let leftCol = null;
-  let rightCol = null;
-  let imgCol = null;
+  // Identify columns and image
+  const leftCol = gridChildren.find((el) => el.tagName === 'DIV' && el.querySelector('h2,h3,p'));
+  const rightCol = gridChildren.find((el) => el.tagName === 'UL');
+  const image = gridChildren.find((el) => el.tagName === 'IMG');
 
-  children.forEach((child) => {
-    if (child.tagName === 'DIV' && !leftCol) {
-      leftCol = child;
-    } else if (child.tagName === 'UL' && !rightCol) {
-      rightCol = child;
-    } else if (child.tagName === 'IMG' && !imgCol) {
-      imgCol = child;
-    }
-  });
+  if (!leftCol || !rightCol || !image) return;
 
-  if (!leftCol || !rightCol || !imgCol) return;
-
-  // Build table rows
+  // Table header
   const headerRow = ['Columns (columns18)'];
-  const secondRow = [leftCol, rightCol];
-  // Remove the empty cell in the third row (no unnecessary empty columns)
-  const thirdRow = [imgCol, rightCol.cloneNode(false)]; // Use an empty node for structure
 
-  // Compose table
+  // Compose the columns row
+  const columnsRow = [leftCol, rightCol];
+  // The image row must have the same number of columns as columnsRow, but no empty columns allowed.
+  // Place the image in the first column, and the second column should also have content or be omitted.
+  // Per feedback, if only one cell is needed, only one column should be present in the row.
+  const imageRow = [image];
+
+  // Build table
   const table = WebImporter.DOMUtils.createTable([
     headerRow,
-    secondRow,
-    thirdRow,
+    columnsRow,
+    imageRow,
   ], document);
 
+  // Replace the original element
   element.replaceWith(table);
 }

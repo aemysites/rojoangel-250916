@@ -1,29 +1,35 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Cards (cards7) block: 2 columns, multiple rows, first row is block name
-  // Header row: exactly one column
+  // Table header row (must be exactly one column)
   const headerRow = ['Cards (cards7)'];
-  const rows = [headerRow];
 
-  // Get all direct children (each is a card image container)
+  // Get all immediate children (the cards)
   const cardDivs = element.querySelectorAll(':scope > div');
 
-  cardDivs.forEach((cardDiv) => {
+  // Each card is a div with an image inside
+  const rows = Array.from(cardDivs).map((cardDiv) => {
+    // Find the image inside the card
     const img = cardDiv.querySelector('img');
-    if (!img) return;
-    // First cell: the image element itself
-    const imageCell = img;
-    // Second cell: Use all text content except image, as a single block
-    let textContent = '';
-    cardDiv.childNodes.forEach((node) => {
-      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'IMG') return;
-      textContent += node.textContent ? node.textContent.trim() + ' ' : '';
-    });
-    textContent = textContent.trim();
-    if (!textContent) textContent = img.getAttribute('alt') || '';
-    rows.push([imageCell, textContent]);
-  });
+    if (!img) return null;
 
-  const table = WebImporter.DOMUtils.createTable(rows, document);
-  element.replaceWith(table);
+    // Try to get text content from alt attribute
+    let textContent = img.getAttribute('alt') || '';
+    textContent = textContent.trim();
+    if (!textContent) textContent = 'Card';
+
+    // Structure the text as a heading (title)
+    const heading = document.createElement('h3');
+    heading.textContent = textContent;
+
+    return [img, heading];
+  }).filter(Boolean);
+
+  // Compose the table rows
+  const tableRows = [headerRow, ...rows];
+
+  // Create the block table
+  const block = WebImporter.DOMUtils.createTable(tableRows, document);
+
+  // Replace the original element with the block table
+  element.replaceWith(block);
 }

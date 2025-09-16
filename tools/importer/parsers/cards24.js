@@ -1,56 +1,72 @@
 /* global WebImporter */
 export default function parse(element, { document }) {
-  // Table header row as per block requirements
-  const headerRow = ['Cards (cards24)'];
-  const rows = [headerRow];
+  // Helper to extract the image from the card
+  function getCardImage(card) {
+    // The image is inside the first div of the card
+    const imgDiv = card.querySelector('div.utility-aspect-2x3');
+    if (imgDiv) {
+      const img = imgDiv.querySelector('img');
+      if (img) return img;
+    }
+    return null;
+  }
 
-  // Defensive: select all direct <a> children (each is a card)
-  const cards = element.querySelectorAll(':scope > a');
-
-  cards.forEach((card) => {
-    // --- IMAGE CELL ---
-    // Find the image inside the card
-    const imgWrapper = card.querySelector('.utility-aspect-2x3');
-    let imgCell = '';
-    if (imgWrapper) {
-      const img = imgWrapper.querySelector('img');
-      if (img) {
-        imgCell = img;
+  // Helper to extract the text content from the card
+  function getCardTextContent(card) {
+    // Tag and date
+    const metaDiv = card.querySelector('div.flex-horizontal');
+    let meta = '';
+    if (metaDiv) {
+      // Tag (first div)
+      const tag = metaDiv.querySelector('.tag');
+      // Date (second div)
+      const date = metaDiv.querySelector('.paragraph-sm');
+      if (tag && date) {
+        meta = `<span>${tag.textContent.trim()}</span> <span>${date.textContent.trim()}</span>`;
+      } else if (tag) {
+        meta = `<span>${tag.textContent.trim()}</span>`;
+      } else if (date) {
+        meta = `<span>${date.textContent.trim()}</span>`;
       }
     }
 
-    // --- TEXT CELL ---
-    // Tag and date (optional, above heading)
-    const tagRow = card.querySelector('.flex-horizontal');
-    let tagDateFrag = document.createDocumentFragment();
-    if (tagRow) {
-      // Use a div for tag/date row
-      const tagDateDiv = document.createElement('div');
-      tagDateDiv.append(...Array.from(tagRow.childNodes));
-      tagDateFrag.appendChild(tagDateDiv);
+    // Title (h3)
+    const heading = card.querySelector('h3');
+    // Compose content
+    const frag = document.createElement('div');
+    if (meta) {
+      const metaDivEl = document.createElement('div');
+      metaDivEl.innerHTML = meta;
+      frag.appendChild(metaDivEl);
     }
-
-    // Heading (title)
-    const heading = card.querySelector('h3, .h4-heading');
-    let headingElem = null;
     if (heading) {
-      headingElem = heading;
+      // Use a heading element for semantic structure
+      const h = document.createElement('h3');
+      h.textContent = heading.textContent.trim();
+      frag.appendChild(h);
     }
+    return frag;
+  }
 
-    // Compose text cell content
-    const textCell = [];
-    if (tagDateFrag.childNodes.length > 0) {
-      textCell.push(tagDateFrag);
-    }
-    if (headingElem) {
-      textCell.push(headingElem);
-    }
+  // Get all cards (direct children that are links)
+  const cards = Array.from(element.querySelectorAll(':scope > a.utility-link-content-block'));
 
-    // Add the row to the table
-    rows.push([imgCell, textCell]);
+  // Build table rows
+  const rows = [];
+  // Header row
+  rows.push(['Cards (cards24)']);
+
+  // Card rows
+  cards.forEach((card) => {
+    const img = getCardImage(card);
+    const textContent = getCardTextContent(card);
+    rows.push([
+      img || '',
+      textContent
+    ]);
   });
 
-  // Create the block table
+  // Create the table and replace the original element
   const table = WebImporter.DOMUtils.createTable(rows, document);
   element.replaceWith(table);
 }
